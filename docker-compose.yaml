@@ -1,4 +1,4 @@
-version: '3.9'
+version: '3.8'
 
 services:
   postgres:
@@ -17,9 +17,12 @@ services:
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    networks:
+      - monitoring-network
 
   taskflow-dotnet-server:
     image: ${DOCKER_REGISTRY-}taskflow-dotnet-server
+    container_name: taskflow_app_container
     build:
       context: .
       dockerfile: API/Dockerfile
@@ -27,4 +30,41 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "8080:80"
+      - "8081:81"
+    networks:
+      - monitoring-network
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus:/etc/prometheus/
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - 9090:9090
+    networks:
+      - monitoring-network
+  
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring-network
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring-network:
+    driver: bridge

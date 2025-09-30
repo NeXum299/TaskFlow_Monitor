@@ -5,8 +5,13 @@ using TaskFlow_Monitor.Domain.Interfaces.Repositories;
 using TaskFlow_Monitor.Infrastructure.Repositories;
 using TaskFlow_Monitor.Domain.Interfaces.Services;
 using TaskFlow_Monitor.Domain.Services;
-using System.Diagnostics.Metrics;
-using OpenTelemetry.Metrics;
+using HealthChecks.UI.Client;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using TaskFlow_Monitor.API.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Prometheus;
+using TaskFlow_Monitor.API.Services;
+using TaskFlow_Monitor.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,12 +19,37 @@ builder.WebHost.UseUrls("http://*:5000");
 
 builder.Services.AddControllers();
 
+builder.Services.AddHealthChecks()
+    .AddSqlServer(
+        connectionString: builder.Configuration.GetConnectionString(nameof(MyDbContext)) ?? "MyDbContext",
+        name: "Database",
+        tags: ["db", "sql"])
+    .AddUrlGroup(new Uri(
+        "http://localhost:9090"),
+        "Prometheus",
+        tags: ["monitor"])
+    .AddProcessAllocatedMemoryHealthCheck(
+        maximumMegabytesAllocated: 512,
+        name: "Memory",
+        tags: ["system"])
+    .AddCheck<ApiHealthCheck>("api", tags: ["service"]);
+
+builder.Services.AddHealthChecksUI(setup =>
+{
+    setup.AddHealthCheckEndpoint("API", "/health");
+    setup.SetEvaluationTimeInSeconds(60);
+    setup.SetApiMaxActiveRequests(3);
+    setup.MaximumHistoryEntriesPerEndpoint(50);
+}).AddInMemoryStorage();
+
 builder.Services.AddScoped<IUsersRepository, UsersRepository>();
 builder.Services.AddScoped<ITaskHistoriesRepository, TaskHistoriesRepository>();
 builder.Services.AddScoped<ITasksRepository, TasksRepository>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<ITasksService, TasksService>();
 builder.Services.AddScoped<ITaskHistoriesService, TaskHistoriesService>();
+
+builder.Services.AddSingleton<IMetricsService, MetricsService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -46,7 +76,27 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<MyDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString(nameof(MyDbContext))));
 
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
+    Predicate = _ => true,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    }
+});
+
+app.MapHealthChecksUI(setup =>
+{
+    setup.UIPath = "/health-ui";
+    setup.AddCustomStylesheet("wwwroot/healthchecks.css");
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -58,8 +108,14 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+
 app.UseRouting();
 app.MapControllers();
+
+app.UseMiddleware<MetricsMiddleware>();
+app.UseHttpMetrics();
+app.MapMetrics("/metrics");
+app.UseMetricServer(port: 81);
 
 using (var scope = app.Services.CreateScope())
 {
