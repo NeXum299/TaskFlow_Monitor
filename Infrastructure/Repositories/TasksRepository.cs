@@ -35,10 +35,14 @@ namespace TaskFlow_Monitor.Infrastructure.Repositories
         {
             var taskEntity = await _dbContext.Tasks.FirstOrDefaultAsync(t => t.Id == id);
 
+            if (taskEntity == null)
+                throw new NullReferenceException("TaskEntity is null!");
+
             var taskHistory = new TaskHistoryEntity
             {
                 Id = Guid.NewGuid(),
-                ChangeDescription = taskEntity!.Description,
+                ChangeDescription = taskEntity.Description,
+                ChangeStatus = taskEntity.Status,
                 ChangedAt = DateTime.UtcNow,
                 TaskId = taskEntity.Id,
                 Task = taskEntity

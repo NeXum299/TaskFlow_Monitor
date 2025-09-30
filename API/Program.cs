@@ -5,6 +5,8 @@ using TaskFlow_Monitor.Domain.Interfaces.Repositories;
 using TaskFlow_Monitor.Infrastructure.Repositories;
 using TaskFlow_Monitor.Domain.Interfaces.Services;
 using TaskFlow_Monitor.Domain.Services;
+using System.Diagnostics.Metrics;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +32,7 @@ builder.Services.AddSwaggerGen(options =>
         TermsOfService = new Uri("https://localhost/terms"),
         Contact = new OpenApiContact
         {
-            Name = "Dima",
+            Name = "Dmitry",
             Url = new Uri("https://localhost/contact")
         },
         License = new OpenApiLicense
@@ -73,7 +75,5 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "An error occurred while migrating the database.");
     }
 }
-
-app.MapGet("/", () => "Hello World!");
 
 app.Run();
