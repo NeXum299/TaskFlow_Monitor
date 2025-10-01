@@ -14,11 +14,24 @@ namespace TaskFlow_Monitor.Infrastructure.Contexts
         public MyDbContext(DbContextOptions<MyDbContext> options)
             : base(options) { }
 
+        protected override void OnConfiguring(
+            DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder
+                    .UseNpgsql("Host=localhost;Database=TaskFlowMonitor;"
+                        + "Username =postgres;Password=password");
+            }
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfiguration(new TaskHistoriesConfiguration());
-            modelBuilder.ApplyConfiguration(new TasksConfiguration());
-            modelBuilder.ApplyConfiguration(new UsersConfiguration());
+            modelBuilder
+                .ApplyConfiguration(new TaskHistoriesConfiguration());
+            modelBuilder
+                .ApplyConfiguration(new TasksConfiguration());
+            modelBuilder
+                .ApplyConfiguration(new UsersConfiguration());
             base.OnModelCreating(modelBuilder);
         }
     }

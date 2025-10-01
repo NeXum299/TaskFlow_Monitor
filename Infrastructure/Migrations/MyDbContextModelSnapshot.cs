@@ -8,7 +8,7 @@ using TaskFlow_Monitor.Infrastructure.Contexts;
 
 #nullable disable
 
-namespace TaskFlow_Monitor.Infrastructure.Migrations
+namespace Infrastructure.Migrations
 {
     [DbContext(typeof(MyDbContext))]
     partial class MyDbContextModelSnapshot : ModelSnapshot
@@ -17,7 +17,7 @@ namespace TaskFlow_Monitor.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "9.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -35,7 +35,6 @@ namespace TaskFlow_Monitor.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Priority")
@@ -64,6 +63,9 @@ namespace TaskFlow_Monitor.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("ChangeDescription")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ChangeStatus")
                         .IsRequired()
                         .HasColumnType("text");
 

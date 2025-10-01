@@ -14,7 +14,7 @@ namespace TaskFlow_Monitor.API.Middleware
             _metricsService = metricsService;
         }
 
-        public void Invoke(HttpContext context)
+        public async Task InvokeAsync(HttpContext context)
         {
             var method = context.Request.Method;
             var endpoint = context.Request.Path;
@@ -27,6 +27,8 @@ namespace TaskFlow_Monitor.API.Middleware
             {
                 try
                 {
+                    await _next(context);
+
                     _metricsService.RecordHttpRequest(method, endpoint.ToString(), context.Response.StatusCode);
                 }
                 catch (Exception)

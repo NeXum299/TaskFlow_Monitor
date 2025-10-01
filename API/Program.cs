@@ -15,7 +15,7 @@ using TaskFlow_Monitor.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseUrls("http://*:5000");
+builder.WebHost.UseUrls("http://*:80");
 
 builder.Services.AddControllers();
 
@@ -31,16 +31,15 @@ builder.Services.AddHealthChecks()
     .AddProcessAllocatedMemoryHealthCheck(
         maximumMegabytesAllocated: 512,
         name: "Memory",
-        tags: ["system"])
-    .AddCheck<ApiHealthCheck>("api", tags: ["service"]);
+        tags: ["system"]);
 
 builder.Services.AddHealthChecksUI(setup =>
 {
-    setup.AddHealthCheckEndpoint("API", "/health");
     setup.SetEvaluationTimeInSeconds(60);
     setup.SetApiMaxActiveRequests(3);
     setup.MaximumHistoryEntriesPerEndpoint(50);
-}).AddInMemoryStorage();
+})
+.AddInMemoryStorage();
 
 builder.Services.AddScoped<IUsersRepository, UsersRepository>();
 builder.Services.AddScoped<ITaskHistoriesRepository, TaskHistoriesRepository>();
@@ -95,7 +94,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 app.MapHealthChecksUI(setup =>
 {
     setup.UIPath = "/health-ui";
-    setup.AddCustomStylesheet("wwwroot/healthchecks.css");
+    setup.ApiPath = "/health-api";
 });
 
 if (app.Environment.IsDevelopment())
