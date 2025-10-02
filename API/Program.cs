@@ -7,39 +7,17 @@ using TaskFlow_Monitor.Domain.Interfaces.Services;
 using TaskFlow_Monitor.Domain.Services;
 using HealthChecks.UI.Client;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using TaskFlow_Monitor.API.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Prometheus;
+using TaskFlow_Monitor.API.Metrics;
+using TaskFlow_Monitor.API.Interfaces.Metrics;
 using TaskFlow_Monitor.API.Services;
-using TaskFlow_Monitor.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://*:80");
 
 builder.Services.AddControllers();
-
-builder.Services.AddHealthChecks()
-    .AddSqlServer(
-        connectionString: builder.Configuration.GetConnectionString(nameof(MyDbContext)) ?? "MyDbContext",
-        name: "Database",
-        tags: ["db", "sql"])
-    .AddUrlGroup(new Uri(
-        "http://localhost:9090"),
-        "Prometheus",
-        tags: ["monitor"])
-    .AddProcessAllocatedMemoryHealthCheck(
-        maximumMegabytesAllocated: 512,
-        name: "Memory",
-        tags: ["system"]);
-
-builder.Services.AddHealthChecksUI(setup =>
-{
-    setup.SetEvaluationTimeInSeconds(60);
-    setup.SetApiMaxActiveRequests(3);
-    setup.MaximumHistoryEntriesPerEndpoint(50);
-})
-.AddInMemoryStorage();
 
 builder.Services.AddScoped<IUsersRepository, UsersRepository>();
 builder.Services.AddScoped<ITaskHistoriesRepository, TaskHistoriesRepository>();
@@ -48,7 +26,11 @@ builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<ITasksService, TasksService>();
 builder.Services.AddScoped<ITaskHistoriesService, TaskHistoriesService>();
 
-builder.Services.AddSingleton<IMetricsService, MetricsService>();
+builder.Services.AddSingleton<CustomMetrics>();
+builder.Services.AddSingleton<ICustomMetrics, CustomMetrics>();
+
+builder.Services.AddScoped<ITaskMetricsService, TaskMetricsService>();
+builder.Services.AddHostedService<MetricsBackgroundService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -79,24 +61,6 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
-    Predicate = _ => true,
-    ResultStatusCodes =
-    {
-        [HealthStatus.Healthy] = StatusCodes.Status200OK,
-        [HealthStatus.Degraded] = StatusCodes.Status200OK,
-        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
-    }
-});
-
-app.MapHealthChecksUI(setup =>
-{
-    setup.UIPath = "/health-ui";
-    setup.ApiPath = "/health-api";
-});
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -107,14 +71,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-
 app.UseRouting();
-app.MapControllers();
-
-app.UseMiddleware<MetricsMiddleware>();
-app.UseHttpMetrics();
-app.MapMetrics("/metrics");
-app.UseMetricServer(port: 81);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -123,12 +80,19 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<MyDbContext>();
         context.Database.Migrate();
+        Console.WriteLine("Database migrations applied successfully.");
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
+        Console.WriteLine($"An error occurred while applying migrations: {ex.Message}");
     }
 }
+
+app.UseHttpMetrics();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+    endpoints.MapMetrics();
+});
 
 app.Run();

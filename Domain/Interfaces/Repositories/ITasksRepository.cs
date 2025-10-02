@@ -9,5 +9,6 @@ namespace TaskFlow_Monitor.Domain.Interfaces.Repositories
         Task Update(Guid id, string title, string description,
             string status, string priority);
         Task Delete(Guid taskId);
+        Task<Dictionary<string, int>> GetTasksCountByStatusAsync();
     }
 }

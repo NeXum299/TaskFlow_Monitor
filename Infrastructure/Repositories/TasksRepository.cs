@@ -58,5 +58,13 @@ namespace TaskFlow_Monitor.Infrastructure.Repositories
                     .SetProperty(t => t.Status, status)
                     .SetProperty(t => t.Priority, priority));
         }
+
+        public async Task<Dictionary<string, int>> GetTasksCountByStatusAsync()
+        {
+            return await _dbContext.Tasks
+                .GroupBy(t => t.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Status, x => x.Count);
+        }
     }
 }

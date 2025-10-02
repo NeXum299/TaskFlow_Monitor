@@ -2,6 +2,7 @@
 using TaskFlow_Monitor.Core.Models;
 using TaskFlow_Monitor.Domain.Interfaces.Services;
 using TaskFlow_Monitor.API.DTO;
+using TaskFlow_Monitor.API.Interfaces.Metrics;
 
 namespace TaskFlow_Monitor.API.Controllers
 {
@@ -9,21 +10,21 @@ namespace TaskFlow_Monitor.API.Controllers
     [Route("api/[controller]")]
     public class TasksController : ControllerBase
     {
+        private readonly ICustomMetrics _metrics;
         private readonly ITasksService _tasksService;
         private readonly ITaskHistoriesService _taskHistoriesService;
         private readonly IUsersService _usersService;
-        private readonly IMetricsService _metricsService;
 
         public TasksController(
             ITasksService tasksService,
             ITaskHistoriesService taskHistoriesService,
             IUsersService usersService,
-            IMetricsService metricsService)
+            ICustomMetrics metrics)
         {
             _tasksService = tasksService;
             _taskHistoriesService = taskHistoriesService;
             _usersService = usersService;
-            _metricsService = metricsService;
+            _metrics = metrics;
         }
         
         [HttpPost]
@@ -47,7 +48,7 @@ namespace TaskFlow_Monitor.API.Controllers
 
             await _tasksService.Add(newTask);
 
-            _metricsService.RecordTaskCreated(request.priority);
+            _metrics.RecordTaskCreated(request.priority);
 
             return Created(nameof(Guid), newId);
         }
@@ -100,8 +101,6 @@ namespace TaskFlow_Monitor.API.Controllers
                 taskRequest.description,
                 taskRequest.status,
                 taskRequest.priority);
-
-            _metricsService.RecordTaskUpdated();
 
             return Ok(id);
         }

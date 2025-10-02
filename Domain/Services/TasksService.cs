@@ -8,11 +8,16 @@ namespace TaskFlow_Monitor.Domain.Services
     {
         private readonly ITasksRepository _tRepository;
 
-        public TasksService(ITasksRepository tasksRepository) =>
+        public TasksService(
+            ITasksRepository tasksRepository)
+        {
             _tRepository = tasksRepository;
+        }
 
-        public async Task Add(TaskEntity taskEntity) =>
+        public async Task Add(TaskEntity taskEntity)
+        {
             await _tRepository.Add(taskEntity);
+        }
 
         public async Task Delete(Guid taskId) =>
             await _tRepository.Delete(taskId);
@@ -28,7 +33,8 @@ namespace TaskFlow_Monitor.Domain.Services
             string priority)
         {
             var task = await _tRepository.Get(id);
-            
+            var oldStatus = task!.Status;
+
             if (task == null) throw new ArgumentNullException(nameof(task));
 
             await _tRepository.Update(id, title, description, status, priority);

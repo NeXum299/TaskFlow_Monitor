@@ -19,9 +19,7 @@ namespace TaskFlow_Monitor.Infrastructure.Contexts
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder
-                    .UseNpgsql("Host=localhost;Database=TaskFlowMonitor;"
-                        + "Username =postgres;Password=password");
+                
             }
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
